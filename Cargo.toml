@@ -1,0 +1,12 @@
+[package]
+name = "fantoccini-session-pool"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+chrono = "0.4.23"
+fantoccini = "0.19.3"
+tokio = { version = "1.24.2", features = ["rt-multi-thread", "macros", "sync", "time"] }
+uuid = { version = "1.2.2", features = ["v4"] }
