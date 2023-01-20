@@ -10,19 +10,18 @@ use tokio::{spawn, sync::RwLock, time::sleep};
 enum Error {
     NoClientsAvailable,
     NoSuchSession,
-    SessionExpired,
 }
 
 #[derive(Clone, Debug)]
 struct Session {
-    id: String,
-    // The client will be None once the session expires
     client_wrapper: Option<ClientWrapper>,
     expires_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Clone, Debug)]
 struct ClientWrapper {
+    // TODO: if there was a way of getting a webdriver from a client
+    // We could do without a wrapper
     webdriver: String,
     client: Client,
 }
@@ -39,30 +38,17 @@ impl Session {
 
 struct FantocciniConnectionManager {
     builder: ClientBuilder<HttpsConnector<HttpConnector>>,
-    unallocated_clients: Vec<ClientWrapper>,
+    webdrivers: Vec<String>,
     sessions: HashMap<String, Arc<Session>>,
 }
 
 impl FantocciniConnectionManager {
-    pub async fn new(urls: Vec<impl ToString>) -> Arc<RwLock<Self>> {
-        let mut unallocated_clients = vec![];
+    pub async fn new(webdrivers: Vec<String>) -> Arc<RwLock<Self>> {
         let builder = ClientBuilder::native();
-        // TODO: Should either close previous connections or skip connection on failure.
-        for webdriver in urls {
-            let webdriver = webdriver.to_string();
-            let client = builder.clone().connect(&webdriver).await.unwrap();
-            let wrapper = ClientWrapper {
-                webdriver,
-                client
-            };
-            
-            unallocated_clients.push(wrapper);
-        }
-
         let sessions = HashMap::<String, Arc<Session>>::new();
         let this = Self {
             builder: builder.clone(),
-            unallocated_clients,
+            webdrivers,
             sessions,
         };
         let this = Arc::new(RwLock::new(this));
@@ -98,7 +84,7 @@ impl FantocciniConnectionManager {
 
                     for id in expired_session_ids {
                         println!("Session {id} has expired. Releasing.");
-                        lock.release_session(id, true).await.unwrap();
+                        lock.release_session(id).await.unwrap();
                     }
                 }
             });
@@ -113,17 +99,39 @@ impl FantocciniConnectionManager {
         &mut self,
         duration: Option<Duration>,
     ) -> Result<Arc<Session>, Error> {
-        let client_wrapper = self
-            .unallocated_clients
-            .pop()
-            .ok_or(Error::NoClientsAvailable)?;
-        let id = client_wrapper.client.session_id().await.unwrap().unwrap();
+        // get unused webdriver
+        let mut unused_webdrivers: Vec<String> = {
+            let used_webdrivers: Vec<String> = self.sessions
+                .iter()
+                .map(|(_, s)| s.client_wrapper.clone())
+                .filter(|cw| cw.is_some())
+                .map(|cw| cw.unwrap())
+                .map(|cw| cw.webdriver)
+                .collect();
+
+            println!("used: {used_webdrivers:?}");
+
+            self.webdrivers
+                .iter()
+                .filter(|webdriver| !used_webdrivers.contains(webdriver))
+                .map(|webdriver| webdriver.to_string())
+                .collect()
+        };
+        println!("unused: {unused_webdrivers:?}");
+
+        let webdriver = unused_webdrivers.pop().ok_or(Error::NoClientsAvailable)?;
+        let client = self.builder.connect(&webdriver).await.unwrap();
+        let id = client.session_id().await.unwrap().unwrap();
+
+        let client_wrapper = ClientWrapper { 
+            webdriver, 
+            client,
+        };
 
         let expires_at = duration
             .map(|duration| Utc::now() + chrono::Duration::from_std(duration).unwrap());
 
         let session = Session {
-            id: id.clone(),
             client_wrapper: Some(client_wrapper),
             expires_at,
         };
@@ -135,25 +143,12 @@ impl FantocciniConnectionManager {
     }
 
     // Releases a session by putting it back into unallocated clients
-    pub async fn release_session(&mut self, id: String, add_back_to_pool: bool) -> Result<(), Error> {
+    pub async fn release_session(&mut self, id: String) -> Result<(), Error> {
         let session = self.sessions.remove(&id).ok_or(Error::NoSuchSession)?;
 
         if let Some(wrapper) = session.client_wrapper.clone() {
             wrapper.client.close().await.unwrap();
-            println!("Session {id} client was closed. Building new connection.");
-
-            let client = self.builder.connect(&wrapper.webdriver).await.unwrap();
-            println!("Session {id} connection was built. Adding to unallocated_clients.");
-            let webdriver = wrapper.webdriver;
-            let wrapper = ClientWrapper {
-                client,
-                webdriver,
-            };
-
-            if add_back_to_pool {
-                self.unallocated_clients.push(wrapper);
-            }
-            println!("Session {id} added to unallocated_clients. Yay.");
+            println!("Session {id} client was closed.");
         } else {
             println!("Session {id} was already closed. Skipping");
         }
@@ -165,20 +160,7 @@ impl FantocciniConnectionManager {
     pub async fn clear(&mut self) -> Result<(), Error> {
         let session_ids: Vec<String> = self.sessions.iter().map(|(id, _)| id.clone()).collect();
         for id in session_ids {
-            self.release_session(id, false).await?;
-        }
-
-        loop {
-            let cw = self.unallocated_clients.pop();
-
-            if let None = cw {
-                break;
-            }
-            let cw = cw.unwrap();
-            let client = cw.client;
-            if let Err(e) = client.close().await {
-                eprintln!("{e:?}");
-            }
+            self.release_session(id).await?;
         }
 
         Ok(())
@@ -187,7 +169,10 @@ impl FantocciniConnectionManager {
 
 #[tokio::main]
 async fn main() {
-    let links = vec!["http://localhost:4444", "http://localhost:4445"];
+    let links = vec!["http://localhost:4444", "http://localhost:4445"]
+        .into_iter()
+        .map(|link| link.to_string())
+        .collect();
     let manager = FantocciniConnectionManager::new(links).await;
 
     {
@@ -209,7 +194,7 @@ async fn main() {
         });
     }
 
-    sleep(Duration::from_secs(20)).await;
+    sleep(Duration::from_secs(7)).await;
 
     println!("Done");
 }
