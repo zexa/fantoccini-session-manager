@@ -144,6 +144,12 @@ impl FantocciniConnectionManager {
         Ok(session)
     }
 
+    pub async fn get_session(&self, id: String) -> Result<Arc<Session>, Error> {
+        let session = self.sessions.get(&id).ok_or(Error::NoSuchSession)?;
+
+        Ok(session.clone())
+    }
+
     // Releases a session by putting it back into unallocated clients
     pub async fn release_session(&mut self, id: String) -> Result<(), Error> {
         let session = self.sessions.remove(&id).ok_or(Error::NoSuchSession)?;

@@ -17,6 +17,7 @@ async fn main() {
         let manager = manager.clone();
         spawn(async move {
             let (a, b) = {
+                let manager = manager.clone();
                 let mut lock = manager.write().await;
                 let a = lock
                     .create_session(Some(Duration::from_secs(20)))
@@ -30,15 +31,27 @@ async fn main() {
                 (a, b)
             };
 
-            {
+            let a_id = a.id.clone();
+
+            spawn(async move {
                 println!("{}: Going to google", a.id);
                 a.client_wrapper.as_ref().unwrap().client.goto("https://google.com").await.unwrap();
-            }
+            });
 
-            {
+            spawn(async move {
                 println!("{}: Going to barbora", b.id);
                 b.client_wrapper.as_ref().unwrap().client.goto("https://barbora.lt").await.unwrap();
-            }
+            });
+
+            spawn(async move {
+                let sess = {
+                    let lock = manager.read().await;
+                    lock.get_session(a_id).await.unwrap()
+                };
+
+                let id = &sess.id;
+                println!("Got session {id}");
+            })
         });
     }
 
