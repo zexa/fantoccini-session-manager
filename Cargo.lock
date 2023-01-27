@@ -172,7 +172,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "fantoccini-session-pool"
+name = "fantoccini-session-manager"
 version = "0.1.0"
 dependencies = [
  "chrono",

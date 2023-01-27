@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use fantoccini_session_pool::FantocciniConnectionManager;
+use fantoccini_session_manager::FantocciniConnectionManager;
 use tokio::{spawn, time::sleep};
 
 #[tokio::main]
