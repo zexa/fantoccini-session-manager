@@ -15,14 +15,7 @@ pub enum Error {
 #[derive(Clone, Debug)]
 pub struct Session {
     pub id: String,
-    pub client_wrapper: Option<ClientWrapper>,
     pub expires_at: Option<DateTime<Utc>>,
-}
-
-#[derive(Clone, Debug)]
-pub struct ClientWrapper {
-    // TODO: if there was a way of getting a webdriver from a client
-    // We could do without a wrapper
     pub webdriver: String,
     pub client: Client,
 }
@@ -105,10 +98,7 @@ impl FantocciniConnectionManager {
             let used_webdrivers: Vec<String> = self
                 .sessions
                 .iter()
-                .map(|(_, s)| s.client_wrapper.clone())
-                .filter(|cw| cw.is_some())
-                .map(|cw| cw.unwrap())
-                .map(|cw| cw.webdriver)
+                .map(|(_, session)| session.webdriver.clone())
                 .collect();
 
             println!("used: {used_webdrivers:?}");
@@ -125,14 +115,13 @@ impl FantocciniConnectionManager {
         let client = self.builder.connect(&webdriver).await.unwrap();
         let id = client.session_id().await.unwrap().unwrap();
 
-        let client_wrapper = ClientWrapper { webdriver, client };
-
         let expires_at =
             duration.map(|duration| Utc::now() + chrono::Duration::from_std(duration).unwrap());
 
         let session = Session {
             id: id.clone(),
-            client_wrapper: Some(client_wrapper),
+            webdriver,
+            client,
             expires_at,
         };
         let session = Arc::new(session);
@@ -156,12 +145,7 @@ impl FantocciniConnectionManager {
             return;
         }
 
-        let session = session.unwrap();
-
-        if let Some(wrapper) = session.client_wrapper.clone() {
-            wrapper.client.close().await.unwrap();
-            println!("Session {id} client was closed.");
-        }
+        let _ = session.unwrap().client.clone().close().await;
     }
 
     // Destroys all sessions for graceful shutdown

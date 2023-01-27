@@ -33,24 +33,12 @@ async fn main() {
 
             spawn(async move {
                 println!("{}: Going to google", a.id);
-                a.client_wrapper
-                    .as_ref()
-                    .unwrap()
-                    .client
-                    .goto("https://google.com")
-                    .await
-                    .unwrap();
+                a.client.goto("https://google.com").await.unwrap();
             });
 
             spawn(async move {
                 println!("{}: Going to barbora", b.id);
-                b.client_wrapper
-                    .as_ref()
-                    .unwrap()
-                    .client
-                    .goto("https://barbora.lt")
-                    .await
-                    .unwrap();
+                b.client.goto("https://barbora.lt").await.unwrap();
             });
 
             spawn(async move {
