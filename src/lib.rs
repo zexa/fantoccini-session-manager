@@ -44,7 +44,7 @@ pub struct FantocciniConnectionManager {
 }
 
 impl FantocciniConnectionManager {
-    pub async fn new(webdrivers: Vec<String>) -> Arc<RwLock<Self>> {
+    pub fn new(webdrivers: Vec<String>) -> Arc<RwLock<Self>> {
         let builder = ClientBuilder::native();
         let sessions = HashMap::<String, Arc<Session>>::new();
         let this = Self {

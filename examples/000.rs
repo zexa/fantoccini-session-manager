@@ -9,7 +9,7 @@ async fn main() {
         .into_iter()
         .map(|link| link.to_string())
         .collect();
-    let manager = FantocciniConnectionManager::new(links).await;
+    let manager = FantocciniConnectionManager::new(links);
 
     {
         let manager = manager.clone();
