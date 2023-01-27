@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use fantoccini::{Client, ClientBuilder};
 use hyper::client::HttpConnector;
 use hyper_tls::HttpsConnector;
-use tokio::{sync::RwLock, spawn, time::sleep};
+use tokio::{spawn, sync::RwLock, time::sleep};
 
 #[derive(Debug)]
 pub enum Error {
@@ -85,7 +85,7 @@ impl FantocciniConnectionManager {
 
                     for id in expired_session_ids {
                         println!("Session {id} has expired. Releasing.");
-                        lock.release_session(id).await.unwrap();
+                        lock.release_session(id).await;
                     }
                 }
             });
@@ -102,7 +102,8 @@ impl FantocciniConnectionManager {
     ) -> Result<Arc<Session>, Error> {
         // get unused webdriver
         let mut unused_webdrivers: Vec<String> = {
-            let used_webdrivers: Vec<String> = self.sessions
+            let used_webdrivers: Vec<String> = self
+                .sessions
                 .iter()
                 .map(|(_, s)| s.client_wrapper.clone())
                 .filter(|cw| cw.is_some())
@@ -124,13 +125,10 @@ impl FantocciniConnectionManager {
         let client = self.builder.connect(&webdriver).await.unwrap();
         let id = client.session_id().await.unwrap().unwrap();
 
-        let client_wrapper = ClientWrapper { 
-            webdriver, 
-            client,
-        };
+        let client_wrapper = ClientWrapper { webdriver, client };
 
-        let expires_at = duration
-            .map(|duration| Utc::now() + chrono::Duration::from_std(duration).unwrap());
+        let expires_at =
+            duration.map(|duration| Utc::now() + chrono::Duration::from_std(duration).unwrap());
 
         let session = Session {
             id: id.clone(),
@@ -151,24 +149,26 @@ impl FantocciniConnectionManager {
     }
 
     // Releases a session by putting it back into unallocated clients
-    pub async fn release_session(&mut self, id: String) -> Result<(), Error> {
-        let session = self.sessions.remove(&id).ok_or(Error::NoSuchSession)?;
+    pub async fn release_session(&mut self, id: String) {
+        let session = self.sessions.remove(&id);
+
+        if session.is_none() {
+            return;
+        }
+
+        let session = session.unwrap();
 
         if let Some(wrapper) = session.client_wrapper.clone() {
             wrapper.client.close().await.unwrap();
             println!("Session {id} client was closed.");
-        } else {
-            println!("Session {id} was already closed. Skipping");
         }
-
-        Ok(())
     }
 
     // Destroys all sessions for graceful shutdown
     pub async fn clear(&mut self) -> Result<(), Error> {
         let session_ids: Vec<String> = self.sessions.iter().map(|(id, _)| id.clone()).collect();
         for id in session_ids {
-            self.release_session(id).await?;
+            self.release_session(id).await;
         }
 
         Ok(())
