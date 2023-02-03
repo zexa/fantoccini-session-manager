@@ -6,9 +6,7 @@ I solved a problem with fantoccini and geckodriver - specificly, the ability to 
 First of all, what is fantoccini: https://github.com/jonhoo/fantoccini
 Fantoccini is an abstraction on A high-level API for programmatically interacting with web pages through WebDriver.
 
-We actually use fantoccini via our tests because our testing library depends on it.
-
-But anyways, The problem is specificly with geckodriver - the websdriver for firefox. You cannot connect to geckodriver if a session has already beed started. In order to be able to connect to a geckodriver again you need to gracefully close the client. This is more often a good thing because it helps with resource management - like ram, cpu usage, etc., but has some its own issues as I'll demonstrate in a sec.
+The problem with fantoccini and geckodriver is that you cannot connect to geckodriver if a session has already beed started. In order to be able to connect to a geckodriver again you need to gracefully close the client. This is more often a good thing because it helps with resource management - like ram, cpu usage, etc., but has some its own issues as I'll demonstrate in a sec.
 
 See example "sad". If we run this application once, it will work as expected. (run sad example) If we run it a second time, the application will crash mentioning that a session is already running on the geckodriver instance (run sad example).
 
