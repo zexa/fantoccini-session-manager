@@ -8,12 +8,12 @@ Fantoccini is an abstraction on A high-level API for programmatically interactin
 
 The problem with fantoccini and geckodriver is that you cannot connect to geckodriver if a session has already beed started. In order to be able to connect to a geckodriver again you need to gracefully close the client. This is more often a good thing because it helps with resource management - like ram, cpu usage, etc., but has some its own issues as I'll demonstrate in a sec.
 
-See example "sad". If we run this application once, it will work as expected. (run sad example) If we run it a second time, the application will crash mentioning that a session is already running on the geckodriver instance (run sad example).
+See example "sad". If we run this application once, it will work as expected. If we run it a second time, the application will crash mentioning that a session is already running on the geckodriver instance (run sad example).
 
-The proper way to be able to run code similar to the sad example, is by issuing the close command as in the "mid" example (rin mid example). And now we should be able to run the example again without issue.
+The proper way to be able to run code similar to the sad example, is by issuing the close command as in the "mid" example. By running this example the first time, the client will gracefully exit, which will allow creating a new session on that geckodriver instance once the mid example is ran a second time.
 
-This is problematic for when apis crash or forget to gracefully close the client. Meaning that the geckodriver would have to be manually restarted, which is a pain in the ass.
+While gracefully exiting clients is the desired, this approach is problematic for when APIs crash or forget to gracefully close the client. Meaning that the geckodriver would have to be manually restarted, which is a pain in the ass if you wanted to use it a second time.
 
-The way I decided to solve/mitigate this issue is by having a piece of code that issues fantoccini sessions which expire after some amount of time. That's where the whole "fantoccini-session-manager" comes in.
+The way I decided to solve/mitigate this issue is by using a wrapper on fantoccini that issues sessions which expire after some amount of time. The code tracks if a session has expired, gracefully exits it, and also allows you to somewhat comfortably manage multiple fantoccini clients/geckodriver-sesisons.
 
 The library still has an issue if the application crashes, but as long as we have it running - which it will if we pair it with actix, axum, etc, the clients should be reusable as long as they're issued by the session manager.
