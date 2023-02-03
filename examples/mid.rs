@@ -12,13 +12,4 @@ async fn main() {
         .await
         .expect("Failed to open google");
     client.close().await.expect("Failed to close client");
-    let client2 = ClientBuilder::native()
-        .connect(webdriver)
-        .await
-        .expect("Failed to connect to webdriver with client2"); // Expected
-    client2
-        .goto("https://google.com")
-        .await
-        .expect("Failed to open google");
-    client2.close().await.expect("Failed to close client");
 }
