@@ -18,7 +18,7 @@ pub struct Session {
     pub expires_at: Option<DateTime<Utc>>,
     pub webdriver: String,
 
-    // TODO: The client structure will remain even if the session is closed, owever, any command will fail.
+    // TODO: The client structure will remain even if the session is closed, however, any command will fail.
     // It is up for the user to indentify that the session has expired.
     pub client: Client,
 }
@@ -140,7 +140,6 @@ impl FantocciniConnectionManager {
         Ok(session.clone())
     }
 
-    // Releases a session by putting it back into unallocated clients
     pub async fn release_session(&mut self, id: String) {
         let session = self.sessions.remove(&id);
 
