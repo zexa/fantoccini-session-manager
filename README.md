@@ -1,8 +1,6 @@
 Warning: This crate is in active development. Its public signatures may change drastically.
 
 # fantoccini-session-manager
-This crate helps to manage multiple geckodriver sessions via the fantoccini api.
-
 I solved a problem with fantoccini and geckodriver - specificly, the ability to manage multiple connections in one application. 
 
 First of all, what is fantoccini: https://github.com/jonhoo/fantoccini
