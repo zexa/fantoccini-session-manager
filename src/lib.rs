@@ -17,6 +17,9 @@ pub struct Session {
     pub id: String,
     pub expires_at: Option<DateTime<Utc>>,
     pub webdriver: String,
+
+    // TODO: The client structure will remain even if the session is closed, owever, any command will fail.
+    // It is up for the user to indentify that the session has expired.
     pub client: Client,
 }
 
